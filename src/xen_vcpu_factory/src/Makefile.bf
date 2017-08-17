@@ -71,7 +71,7 @@ INCLUDE_PATHS+=../../
 INCLUDE_PATHS+=../../exit_handler
 INCLUDE_PATHS+=%HYPER_ABS%/include/
 INCLUDE_PATHS+=%HYPER_ABS%/bfvmm/include/
-INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_compat/include/
+INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_extensions/include/
 
 LIBS+=
 

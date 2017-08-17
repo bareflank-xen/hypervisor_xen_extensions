@@ -69,8 +69,8 @@ SOURCES+=xen_exit_handler.cpp
 
 INCLUDE_PATHS+=%HYPER_ABS%/include/
 INCLUDE_PATHS+=%HYPER_ABS%/bfvmm/include/
-INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_compat/include/
-INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_compat/include/exit_handler/
+INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_extensions/include/
+INCLUDE_PATHS+=%HYPER_ABS%/hypervisor_xen_extensions/include/exit_handler/
 
 LIBS+=
 

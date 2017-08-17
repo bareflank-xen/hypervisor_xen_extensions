@@ -13,12 +13,12 @@ To setup our extension, run the following (assuming Linux):
 cd ~/
 git clone https://github.com/Bareflank/hypervisor.git
 cd ~/hypervisor
-git clone https://github.com/AlexLanzano/hypervisor_xen_compat.git
+git clone https://github.com/AlexLanzano/hypervisor_xen_extensions.git
 
 ./tools/scripts/setup-<xxx>.sh --no-configure
 sudo reboot
 
-./configure -m ./hypervisor_xen_compat/bin/xen_compat.modules
+./configure -m ./hypervisor_xen_extensions/bin/xen_extensions.modules
 make
 ```
 
@@ -29,7 +29,7 @@ following make shortcuts:
 make driver_load
 make quick
 
-cd ./hypervisor_xen_compat/test_drivers/console_io/
+cd ./hypervisor_xen_extensions/test_drivers/console_io/
 
 make
 sudo insmod console_io.ko
@@ -40,7 +40,7 @@ make dump
 make stop
 make driver_unload
 
-cd ./hypervisor_xen_compat/test_drivers/console_io/
+cd ./hypervisor_xen_extensions/test_drivers/console_io/
 sudo rmmod console_io.ko
 
 ```
