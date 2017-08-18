@@ -1,5 +1,4 @@
 #include <exit_handler/xen_exit_handler.h>
-
 #include <vmcs/vmcs_intel_x64_32bit_guest_state_fields.h>
 #include <vmcs/vmcs_intel_x64_32bit_read_only_data_fields.h>
 #include <vmcs/vmcs_intel_x64_natural_width_guest_state_fields.h>
@@ -7,7 +6,6 @@
 #include <vmcs/vmcs_intel_x64_64bit_guest_state_fields.h>
 #include <vmcs/vmcs_intel_x64_check.h>
 #include <vmcs/vmcs_intel_x64_debug.h>
-
 #include <exit_handler/exit_handler_intel_x64.h>
 #include <test_hypercalls.h>
 #include <xen.h>
@@ -46,7 +44,6 @@ void init_hypercall_page(void *hypercall_page)
             *static_cast<uint8_t*>(p + 7) = 0xc1;
             *static_cast<uint8_t*>(p + 8) = 0xc3; /* ret */
     }
-
 }
 
 void xen_exit_handler::handle_exit(intel_x64::vmcs::value_type reason)
@@ -115,8 +112,8 @@ void xen_exit_handler::handle_xen_vmcall()
                     init_shared_info(regs);
                     break;
 
-                case UPDATE_FAKE_CLOCK:
-                    update_fake_clock(regs);
+                case SET_BAREFLANK_TIME:
+                    set_bareflank_time(regs);
                     break;
 
                 case xen_hypercall::console_io:
@@ -132,7 +129,6 @@ void xen_exit_handler::handle_xen_vmcall()
         });
     complete_xen_vmcall(ret, regs);
 }
-
 
 void xen_exit_handler::handle_xen_wrmsr()
 {
@@ -175,10 +171,6 @@ void xen_exit_handler::init_start_info(vmcall_registers_t &regs)
     strncpy(start_info->magic, "xen-TEST-TEST", 31);
 }
 
-
-
-
-
 void xen_exit_handler::init_shared_info(vmcall_registers_t &regs)
 {
     auto imap = bfn::make_unique_map_x64<shared_info_t>(regs.r01, vmcs::guest_cr3::get(),
@@ -186,20 +178,18 @@ void xen_exit_handler::init_shared_info(vmcall_registers_t &regs)
                                                         vmcs::guest_ia32_pat::get());
     shared_info = imap.get();
     shared_info_addr = regs.r01;
-    shared_info->wc.version = 1;
-    shared_info->vcpu_info[0].time.version = 1;
     tsc_khz = static_cast<unsigned int>(regs.r02);
-
 }
 
 
 
-void xen_exit_handler::update_fake_clock(vmcall_registers_t &regs)
+void xen_exit_handler::set_bareflank_time(vmcall_registers_t &regs)
 {
-    auto imap = bfn::make_unique_map_x64<shared_info_t>(regs.r01, vmcs::guest_cr3::get(),
-                                                        sizeof(shared_info_t),
-                                                        vmcs::guest_ia32_pat::get());
-    shared_info = imap.get();
+
+    /*
+
+    shared_info->vcpu_info[0].version = 1;
+    shared_info->wc.version = 1;
 
     uint64_t tsc_timestamp = shared_info->vcpu_info[0].time.tsc_timestamp;
     uint32_t seconds = shared_info->wc.sec;
@@ -214,14 +204,19 @@ void xen_exit_handler::update_fake_clock(vmcall_registers_t &regs)
     seconds += nanoseconds / 1000000000;
     nanoseconds = nanoseconds % 1000000000;
 
-    //shared_info->vcpu_info[0].time.tsc_timestamp = new_tsc;
-    //shared_info->vcpu_info[0].time.system_time = system_time;
+    shared_info->vcpu_info[0].time.tsc_timestamp = new_tsc;
+    shared_info->vcpu_info[0].time.system_time = system_time;
     shared_info->wc.sec = seconds;
     shared_info->wc.nsec = nanoseconds;
-
+    */
+    auto imap = bfn::make_unique_map_x64<shared_info_t>(shared_info_addr, vmcs::guest_cr3::get(),
+                                                        sizeof(shared_info_t),
+                                                        vmcs::guest_ia32_pat::get());
+    shared_info = imap.get();
+    shared_info->vcpu_info[0].time.tsc_timestamp = regs.r01;
+    shared_info->wc.sec = regs.r02;
+    shared_info->wc.nsec = regs.r03;
 }
-
-
 
 void xen_exit_handler::handle_vmcall_console_io(uintptr_t rdi, uintptr_t rsi, uintptr_t rdx)
 {
@@ -237,7 +232,6 @@ void xen_exit_handler::handle_vmcall_console_io(uintptr_t rdi, uintptr_t rsi, ui
         break;
     }
 }
-
 
 void xen_exit_handler::handle_console_io_write(uintptr_t rsi, uintptr_t rdx)
 {

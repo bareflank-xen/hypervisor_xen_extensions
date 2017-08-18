@@ -43,7 +43,7 @@ class xen_exit_handler : public exit_handler_intel_x64
 
     void init_start_info(vmcall_registers_t &regs);
     void init_shared_info(vmcall_registers_t &regs);
-    void update_fake_clock(vmcall_registers_t &regs);
+    void set_bareflank_time(vmcall_registers_t &regs);
     void handle_vmcall_console_io(uintptr_t rdi, uintptr_t rsi, uintptr_t rdx);
     void handle_test_vmcall();
 

@@ -26,8 +26,9 @@ typedef struct thread_args {
 
 struct shared_info *shared_info;
 struct start_info *start_info;
-static struct task_struct *update_clock_thread;
+static struct task_struct *elapsed_time_thread;
 spinlock_t lock;
+
 
 
 /**
@@ -131,53 +132,37 @@ inline void make_hypercall3(unsigned long rax, unsigned long rdi,
 
 uint64_t get_elapsed_time(void)
 {
-    uint64_t tsc, nsec_elapsed;
+    uint64_t boot_tsc, current_tsc;
     unsigned long flags;
-    uint64_t tsc_timestamp = shared_info->vcpu_info[0].time.tsc_timestamp;
+
+    spin_lock_irqsave(&lock, flags);
+    current_tsc = rdtsc();
+    spin_unlock_irqrestore(&lock, flags);
+
+    boot_tsc = shared_info->vcpu_info[0].time.tsc_timestamp;
+    return NANOSECONDS((current_tsc - boot_tsc)) / 1000000000;
+}
+
+void set_bareflank_time(void)
+{
+    unsigned long flags;
+    uint64_t tsc;
+    struct timespec ts;
 
     spin_lock_irqsave(&lock, flags);
     tsc = rdtsc();
+    getnstimeofday(&ts);
     spin_unlock_irqrestore(&lock, flags);
-
-    tsc -= tsc_timestamp;
-    nsec_elapsed = NANOSECONDS(tsc);
-    return nsec_elapsed / 1000000000;
+    make_hypercall3(SET_BAREFLANK_TIME, tsc, ts.tv_sec, ts.tv_nsec);
 }
 
-
-int update_fake_clock(void *data)
+int print_elapsed_time(void *data)
 {
-    thread_args_t *args = (thread_args_t*)data;
-
-    shared_info = args->shared_info;
-
     while (!kthread_should_stop()) {
-        uint64_t sec;
-        make_hypercall1(UPDATE_FAKE_CLOCK, (unsigned long)shared_info);
-
-        sec = get_elapsed_time();
-        printk(KERN_INFO "[PVCLOCK]: %llu second(s) elapsed\n", sec);
+        printk(KERN_INFO "[PVCLOCK]: %llu second(s) elapsed\n", get_elapsed_time());
         msleep(500);
     }
     do_exit(0);
-    return 0;
-}
-
-
-static inline uint32_t hypervisor_cpuid_base2(const char *sig, uint32_t leaves)
-{
-    uint32_t base, eax, signature[3];
-
-    for (base = 0x40000000; base < 0x40010000; base += 0x100) {
-        cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
-        printk(KERN_INFO "%d", eax - base >= leaves);
-        printk(KERN_INFO "%s", (char*)signature);
-
-        if (!memcmp(sig, signature, 12) &&
-            (leaves == 0 || ((eax - base) >= leaves)))
-            return base;
-    }
-
     return 0;
 }
 
@@ -193,10 +178,7 @@ bool bareflank_is_running(void)
 
 bool init_shared_info(void)
 {
-    uint64_t tsc;
     uint32_t mult, shift;
-    unsigned long flags;
-    struct timespec ts;
 
     printk(KERN_INFO "[PVCLOCK]: initializing shared_info page.\n");
     shared_info = kzalloc(sizeof(struct shared_info), GFP_KERNEL);
@@ -211,18 +193,8 @@ bool init_shared_info(void)
     shared_info->vcpu_info[0].time.tsc_to_system_mul = mult;
     shared_info->vcpu_info[0].time.tsc_shift = (uint8_t)shift;
 
-    spin_lock_irqsave(&lock, flags);
-    getnstimeofday(&ts);
-    tsc = rdtsc();
-    spin_unlock_irqrestore(&lock, flags);
-
-    shared_info->vcpu_info[0].time.tsc_timestamp = tsc;
-    shared_info->wc.sec = ts.tv_sec;
-    shared_info->wc.nsec = ts.tv_nsec;
-
     make_hypercall2(INIT_SHARED_INFO, (unsigned long)shared_info, tsc_khz);
     return true;
-
 }
 
 bool init_start_info(void)
@@ -251,9 +223,6 @@ bool init_start_info(void)
 
 static int __init driver_start(void)
 {
-
-    thread_args_t args;
-
     spin_lock_init(&lock);
 
     if (bareflank_is_running() == false)
@@ -262,8 +231,8 @@ static int __init driver_start(void)
     if (init_shared_info() == false)
         goto abort;
 
-    args.shared_info = shared_info;
-    update_clock_thread = kthread_run(update_fake_clock, &args, "update_clock");
+    set_bareflank_time();
+    elapsed_time_thread = kthread_run(print_elapsed_time, NULL, "print_elapsed_time");
 
     if (init_start_info() == false)
         goto abort;
@@ -274,7 +243,7 @@ static int __init driver_start(void)
 
 static void __exit driver_end(void)
 {
-    kthread_stop(update_clock_thread);
+    kthread_stop(elapsed_time_thread);
 }
 
 
