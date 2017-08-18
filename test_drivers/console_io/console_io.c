@@ -38,7 +38,7 @@ static int __init driver_start(void)
 
     /* Check if hypercall_page was populated by Bareflank */
 
-    if ((char *)hypercall_page == 0) {
+    if (*(uint64_t *)hypercall_page == 0) {
         printk(KERN_ERR "[CONSOLE_IO]: hypercall_page was not populated. Aborting.\n");
         goto abort;
     }

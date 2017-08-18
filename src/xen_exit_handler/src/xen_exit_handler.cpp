@@ -19,7 +19,6 @@ shared_info_t *shared_info = NULL;
 uintptr_t shared_info_addr = 0;
 unsigned int tsc_khz;
 
-
 uint64_t rdtsc(void)
 {
     unsigned int low, high;
@@ -49,7 +48,6 @@ void init_hypercall_page(void *hypercall_page)
     }
 
 }
-
 
 void xen_exit_handler::handle_exit(intel_x64::vmcs::value_type reason)
 {
@@ -81,7 +79,6 @@ void xen_exit_handler::handle_exit(intel_x64::vmcs::value_type reason)
         exit_handler_intel_x64::handle_exit(reason);
 }
 
-
 void xen_exit_handler::handle_xen_cpuid()
 {
     bfdebug << "Entered correctly" << bfendl;
@@ -91,7 +88,6 @@ void xen_exit_handler::handle_xen_cpuid()
     m_state_save->rdx = 0x4d4d566e;
     advance_rip();
 }
-
 
 void xen_exit_handler::handle_xen_vmcall()
 {
@@ -111,15 +107,15 @@ void xen_exit_handler::handle_xen_vmcall()
             switch (m_state_save->rax)
                 {
 
-                case test_hypercall::init_start_info:
+                case INIT_START_INFO:
                     init_start_info(regs);
                     break;
 
-                case test_hypercall::init_shared_info:
+                case INIT_SHARED_INFO:
                     init_shared_info(regs);
                     break;
 
-                case test_hypercall::update_fake_clock:
+                case UPDATE_FAKE_CLOCK:
                     update_fake_clock(regs);
                     break;
 
@@ -147,8 +143,8 @@ void xen_exit_handler::handle_xen_wrmsr()
 
     bfdebug << vmcs::guest_cr3::get() << bfendl;
     bfdebug << "hypervisor: " << std::hex << val << bfendl;
-    uintptr_t phys_addr = bfn::virt_to_phys_with_cr3(val, vmcs::guest_cr3::get());
 
+    uintptr_t phys_addr = bfn::virt_to_phys_with_cr3(val, vmcs::guest_cr3::get());
     auto imap = bfn::make_unique_map_x64<uintptr_t>(phys_addr);
     uintptr_t *page = imap.get();
 
@@ -190,7 +186,6 @@ void xen_exit_handler::init_shared_info(vmcall_registers_t &regs)
                                                         vmcs::guest_ia32_pat::get());
     shared_info = imap.get();
     shared_info_addr = regs.r01;
-
     shared_info->wc.version = 1;
     shared_info->vcpu_info[0].time.version = 1;
     tsc_khz = static_cast<unsigned int>(regs.r02);
@@ -205,8 +200,6 @@ void xen_exit_handler::update_fake_clock(vmcall_registers_t &regs)
                                                         sizeof(shared_info_t),
                                                         vmcs::guest_ia32_pat::get());
     shared_info = imap.get();
-
-
 
     uint64_t tsc_timestamp = shared_info->vcpu_info[0].time.tsc_timestamp;
     uint32_t seconds = shared_info->wc.sec;
@@ -252,7 +245,6 @@ void xen_exit_handler::handle_console_io_write(uintptr_t rsi, uintptr_t rdx)
     auto imap = bfn::make_unique_map_x64<char>(rdx, vmcs::guest_cr3::get(), rsi,
                                                vmcs::guest_ia32_pat::get());
     bfdebug << std::string(imap.get(), rsi) << bfendl;
-
 }
 
 void xen_exit_handler::handle_console_io_read()

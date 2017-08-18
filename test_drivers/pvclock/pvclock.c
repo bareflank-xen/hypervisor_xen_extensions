@@ -14,13 +14,11 @@
 #include <asm/tsc.h>
 #include <linux/clocksource.h>
 #include <asm/msr.h>
+#include <../../include/exit_handler/test_hypercalls.h>
 
 MODULE_LICENSE("GPL");
 
 #define NANOSECONDS(delta) ((1000000ULL * delta) / tsc_khz)
-#define INIT_SHARED_INFO 100
-#define INIT_START_INFO 101
-#define UPDATE_FAKE_CLOCK 102
 
 typedef struct thread_args {
     struct shared_info *shared_info;
@@ -33,6 +31,7 @@ spinlock_t lock;
 
 
 /**
+ * COPIED FROM LINUX KERNEL: kernel/time/clocksource.c
  * clocks_calc_mult_shift - calculate mult/shift factors for scaled math of clocks
  * @mult:	pointer to mult variable
  * @shift:	pointer to shift variable
